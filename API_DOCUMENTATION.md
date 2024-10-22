@@ -14,7 +14,40 @@ To obtain a JWT token, use Supabase's authentication system when the user logs i
 
 ## API Endpoints
 
-### 1. User Profile
+
+## 1. User Management
+
+### Create a User
+
+Create a new user account. Passwords are securely hashed before being stored in the database.
+
+```javascript
+POST /api/create-user
+
+const userData = {
+  email: 'john.doe@example.com',
+  username: 'john_doe',
+  password: 'securePassword123' // This will be hashed and stored securely
+};
+
+const response = await fetch('/api/user', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify(userData)
+});
+
+if (response.ok) {
+  const result = await response.json();
+  console.log('User created:', result);
+} else if (response.status === 400) {
+  console.error('User with this email already exists');
+} else {
+  console.error('Failed to create user');
+}
+```
+### 2. User Profile
 
 #### Get User Profile
 
@@ -36,6 +69,7 @@ if (response.ok) {
   console.error('Failed to fetch profile');
 }
 ```
+
 
 #### Update User Profile
 
@@ -69,7 +103,7 @@ if (response.ok) {
 }
 ```
 
-### 2. Workout Plan
+### 3. Workout Plan
 
 #### Generate Workout Plan
 
@@ -152,7 +186,7 @@ if (response.ok) {
 }
 ```
 
-### 3. Nutrition Plan
+### 4. Nutrition Plan
 
 #### Generate Nutrition Plan
 
