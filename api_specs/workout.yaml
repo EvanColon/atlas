@@ -1,0 +1,220 @@
+paths:
+  /workout-plan:
+    post:
+      tags:
+        - workout
+      summary: Generate a new workout plan
+      operationId: generateWorkoutPlan
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlanRequest'
+      responses:
+        '201':
+          description: Workout plan created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutPlan'
+        '400':
+          $ref: '../openapi.yaml#/components/responses/ValidationError'
+        '401':
+          $ref: '../openapi.yaml#/components/responses/UnauthorizedError'
+
+    get:
+      tags:
+        - workout
+      summary: Get current workout plan
+      operationId: getCurrentWorkoutPlan
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successful retrieval of current workout plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutPlan'
+        '401':
+          $ref: '../openapi.yaml#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '../openapi.yaml#/components/responses/NotFoundError'
+
+  /workout-plan/{date}:
+    put:
+      tags:
+        - workout
+      summary: Update workout for a specific date
+      operationId: updateWorkout
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyWorkoutUpdate'
+      responses:
+        '200':
+          description: Workout updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyWorkout'
+        '400':
+          $ref: '../openapi.yaml#/components/responses/ValidationError'
+        '401':
+          $ref: '../openapi.yaml#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '../openapi.yaml#/components/responses/NotFoundError'
+
+components:
+  schemas:
+    WorkoutPlanRequest:
+      type: object
+      required:
+        - goal
+        - duration
+        - branch
+      properties:
+        goal:
+          type: string
+          enum: [strength, endurance, weight_loss, general_fitness]
+          example: strength
+        duration:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 52
+          example: 4
+        branch:
+          type: string
+          enum: [Army, Navy, Air Force, Marines, Coast Guard, Space Force]
+          example: Army
+
+    WorkoutPlan:
+      type: object
+      required:
+        - id
+        - startDate
+        - endDate
+        - weeklyPlan
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        startDate:
+          type: string
+          format: date
+          example: '2023-05-01'
+        endDate:
+          type: string
+          format: date
+          example: '2023-05-28'
+        weeklyPlan:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyWorkout'
+
+    DailyWorkout:
+      type: object
+      required:
+        - day
+        - summary
+        - duration
+        - caloriesBurned
+        - workoutType
+        - exercises
+      properties:
+        day:
+          type: string
+          format: date
+          example: '2023-05-01'
+        summary:
+          type: string
+          example: 'Strength Training'
+        duration:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 60
+        caloriesBurned:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 300
+        workoutType:
+          type: string
+          enum: [cardio, strength, yoga, hiit, rest]
+          example: strength
+        exercises:
+          type: array
+          items:
+            $ref: '#/components/schemas/Exercise'
+
+    Exercise:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: 'Push-ups'
+        sets:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 3
+        reps:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 15
+        duration:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 30
+        completed:
+          type: boolean
+          example: false
+        difficulty:
+          type: string
+          enum: [easy, just-right, hard]
+
+    DailyWorkoutUpdate:
+      type: object
+      properties:
+        exercises:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExerciseUpdate'
+
+    ExerciseUpdate:
+      type: object
+      required:
+        - name
+        - completed
+      properties:
+        name:
+          type: string
+          example: 'Push-ups'
+        completed:
+          type: boolean
+          example: true
+        difficulty:
+          type: string
+          enum: [easy, just-right, hard]
+          example: just-right

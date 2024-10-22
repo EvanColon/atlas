@@ -1,0 +1,77 @@
+openapi: 3.1.0
+info:
+  title: DoD Fitness App API
+  version: 1.0.0
+  description: API specification for the DoD Fitness App backend services
+
+servers:
+  - url: https://api.dodfitness.mil/v1
+
+tags:
+  - name: auth
+    description: Authentication operations
+  - name: profile
+    description: User profile operations
+  - name: workout
+    description: Workout plan operations
+  - name: nutrition
+    description: Nutrition plan operations
+  - name: dashboard
+    description: Dashboard module operations
+
+paths: {}
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    UnauthorizedError:
+      description: Access token is missing or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ForbiddenError:
+      description: The server understood the request but refuses to authorize it
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFoundError:
+      description: The specified resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationError:
+      description: The request payload is invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+
+    UserRole:
+      type: string
+      enum:
+        - SystemAdministrator
+        - UnitLeadership
+        - FitnessSpecialist
+        - NutritionSpecialist
+        - BaseMember
