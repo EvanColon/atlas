@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { OpenAI } from 'openai';
-// import { authMiddleware } from '@/middleware/auth';
+import { generateWorkoutPlan } from '@/lib/llmFunctions';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -12,143 +11,91 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 export async function POST(request: Request) {
-  // const authResponse = await authMiddleware(request);
-  // if (authResponse.status !== 200) return authResponse;
-  
-  // const user = (request as any).user;  // Authenticated user info from middleware
-  const user = await request.json();
+  const { id, startDate, endDate } = await request.json();
 
-  // Fetch user profile
+  console.log("req", id, startDate, endDate)
+
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', id)
     .single();
 
   if (profileError) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
   }
 
+  const workoutPlan = await generateWorkoutPlan(profile, startDate, endDate);
 
+  console.log("workoutPlan", workoutPlan)
 
-  // Generate workout plan using OpenAI
-  const prompt = `Generate a workout plan based on these user profile parameters ${profile}. Include daily workouts with exercises, sets, reps, and durations. Only output a JSON object that I can easily parse and push to my sql databases. The object should be formatted as the following:
-   
-  WorkoutPlan:
-      type: object
-      required:
-        - startDate
-        - endDate
-        - weeklyPlan
-      properties:
-        startDate:
-          type: string
-          format: date
-          example: '2023-05-01'
-        endDate:
-          type: string
-          format: date
-          example: '2023-05-28'
-        weeklyPlan:
-          type: array
-          items:
-            $ref: '#/components/schemas/DailyWorkout'
+  try {
+    // Save the workout plan in 3 tables: workout_plans, daily_workouts, exercises
+    const { data: savedPlan, error } = await supabase
+      .from('workout_plans')
+      .insert({
+        user_id: id,
+        start_date: workoutPlan.startDate,
+        end_date: workoutPlan.endDate,
+        goal: workoutPlan.workoutGoal,
+      })
+      .select();
 
-    DailyWorkout:
-      type: object
-      required:
-        - day
-        - summary
-        - duration
-        - caloriesBurned
-        - workoutType
-        - exercises
-      properties:
-        day:
-          type: string
-          format: date
-          example: '2023-05-01'
-        summary:
-          type: string
-          example: 'Strength Training'
-        duration:
-          type: integer
-          format: int32
-          minimum: 0
-          example: 60
-        caloriesBurned:
-          type: integer
-          format: int32
-          minimum: 0
-          example: 300
-        workoutType:
-          type: string
-          enum: [cardio, strength, yoga, hiit, rest]
-          example: strength
-        exercises:
-          type: array
-          items:
-            $ref: '#/components/schemas/Exercise'
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
-    Exercise:
-      type: object
-      required:
-        - name
-      properties:
-        name:
-          type: string
-          example: 'Push-ups'
-        sets:
-          type: integer
-          format: int32
-          minimum: 1
-          example: 3
-        reps:
-          type: integer
-          format: int32
-          minimum: 1
-          example: 15
-        duration:
-          type: integer
-          format: int32
-          minimum: 1
-          example: 30
-  `;
+    console.log("savedPlan", savedPlan)
 
-  const completion = await openai.chat.completions.create({
-    messages: [{ 
-      role: 'system', content: 'You are a proffesional trainer.'},
-      {
-        role: 'user', 
-        content: prompt 
-      }],
-    model: 'gpt-3.5-turbo',
-    max_tokens: 1000,
-    response_format: { "type": "json_object" },
-  });
+    // Save each daily workout
+    for (const dailyWorkout of workoutPlan.workoutPlan) {
+      const { data: savedDailyWorkout, error } = await supabase
+        .from('daily_workouts')
+        .insert({
+          workout_plan_id: savedPlan[0].id,
+          date: dailyWorkout.day,
+          summary: dailyWorkout.summary,
+          duration: dailyWorkout.duration,
+          calories_burned: dailyWorkout.caloriesBurned,
+          workout_type: dailyWorkout.workoutType,
+        })
+        .select();
 
-  const workoutPlan = completion.choices[0].message.content;
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
 
-  // Save workout plan to database
-  // const { data: savedPlan, error: saveError } = await supabase
-  //   .from('workout_plans')
-  //   .insert({
-  //     userId: user.id,
-  //     plan: workoutPlan,
-  //     startDate: new Date().toISOString(),
-  //     endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-  //   })
-  //   .select();
+      console.log("savedDailyWorkout", savedDailyWorkout)
 
-  // if (saveError) {
-  //   return NextResponse.json({ error: saveError.message }, { status: 500 });
-  // }
+      // Save each exercise
+      for (const exercise of dailyWorkout.exercises) {
+        const { data: savedExercise, error } = await supabase
+          .from('exercises')
+          .insert({
+            daily_workout_id: savedDailyWorkout[0].id,
+            name: exercise.name,
+            sets: exercise.sets,
+            reps: exercise.reps,
+            duration: exercise.duration,
+            weight: exercise.weight,
+            rest_time: exercise.restTime,
+            completed: false,
+            difficulty: exercise.exerciseDifficulty,
+          })
+          .select();
 
-  return NextResponse.json(workoutPlan, { status: 201 });
+        if (error) {
+          return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        console.log("savedExercise", savedExercise)
+      }
+    }
+
+    return NextResponse.json(savedPlan[0], { status: 201 });
+  } catch (error) {
+    console.error("Error saving workout plan:", error);
+    return NextResponse.json({ error: `Error saving workout plan: ${error}` }, { status: 500 });
+  }
 }
