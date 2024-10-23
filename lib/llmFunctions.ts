@@ -102,7 +102,18 @@ export const nutritionPlanFunction = {
                   fat: { type: "integer", minimum: 0 },
                   foods: {
                     type: "array",
-                    items: { type: "string" }
+                    items: { 
+                      type: "object",
+                      properties: {
+                        name: { type: "string" },
+                        amount: { type: "string" },
+                        calories: { type: "integer", minimum: 0 },
+                        protein: { type: "integer", minimum: 0 },
+                        carbs: { type: "integer", minimum: 0 },
+                        fat: { type: "integer", minimum: 0 },
+                      },
+                      required: ["name", "amount", "calories", "protein", "carbs", "fat"]
+                    }
                   }
                 },
                 required: ["name", "calories", "protein", "carbs", "fat", "foods"]

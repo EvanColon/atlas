@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { OpenAI } from 'openai';  // Correct import
-import { authMiddleware } from '@/middleware/auth';
+import { generateNutritionPlan } from '@/lib/llmFunctions';
+import { v4 as uuidv4 } from 'uuid';
+
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -12,61 +13,107 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 export async function POST(request: Request) {
-  // Handle authentication
-  const authResponse = await authMiddleware(request);
-  if (authResponse.status !== 200) return authResponse;
+  const { id, startDate, endDate } = await request.json();
 
-  const user = (request as any).user;  // Authenticated user info from middleware
+  console.log("req", id, startDate, endDate);
 
-  // Fetch user profile from Supabase
+  // Fetch user profile
   const { data: profile, error: profileError } = await supabase
-    .from('Profile')
+    .from('profiles')
     .select('*')
-    .eq('userId', user.id)
+    .eq('user_id', id)
     .single();
 
   if (profileError) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
   }
 
-  // Define the prompt for OpenAI to generate a 7-day nutrition plan
-  const prompt = `Generate a 7-day nutrition plan for a ${profile.age}-year-old ${profile.branch} service member with the following goals: ${profile.nutritionGoals}. Consider these dietary restrictions: ${profile.dietaryRestrictions}. Include daily meals with foods, amounts, and calorie counts.`;
+  // Generate the nutrition plan
+  const nutritionPlan = await generateNutritionPlan(profile);
 
-  // Use OpenAI's chat completion API to generate the nutrition plan
-  const completion = await openai.chat.completions.create({
-    messages: [{ role: 'system', content: prompt }],
-    model: 'gpt-3.5-turbo',
-    max_tokens: 1000,
-  });
+  console.log("nutritionPlan", nutritionPlan.weeklyPlan.meals);
 
-  const nutritionPlan = completion.choices[0]?.message?.content;
+  try {
+    // Insert the nutrition plan into 'nutrition_plans' table
+    const { data: savedPlan, error } = await supabase
+      .from('nutrition_plans')
+      .insert({
+        id: uuidv4(),
+        user_id: id,
+        start_date: nutritionPlan.startDate,
+        end_date: nutritionPlan.endDate,
+        //TODO: Add goal to DB?
+      })
+      .select();
 
-  if (!nutritionPlan) {
-    return NextResponse.json({ error: 'Failed to generate nutrition plan' }, { status: 500 });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    console.log("savedPlan", savedPlan);
+
+    // Loop over each day's plan in the weeklyPlan and insert meals
+    for (const dayPlan of nutritionPlan.weeklyPlan) {
+      for (const meal of dayPlan.meals) {
+        // Insert each meal into 'meals' table
+        const { data: savedMeals, error: mealsError } = await supabase
+          .from('meals')
+          .insert({
+            id: uuidv4(),
+            nutrition_plan_id: savedPlan[0].id,
+            name: meal.name,
+             // protein: food.protein,
+              // carbs: food.carbs,
+              // fat: food.fat,  
+                                //TODO: Add these fields to DB?
+          })
+          .select();
+
+        if (mealsError) {
+          return NextResponse.json({ error: mealsError.message }, { status: 500 });
+        }
+
+        console.log("savedMeals", savedMeals);
+
+        // Insert each food related to the meal (if needed)
+        for (const food of meal.foods) {
+          const { data: savedFoods, error: foodsError } = await supabase
+            .from('foods')
+            .insert({
+              id: uuidv4(),
+              meal_id: savedMeals[0].id, // Reference to the saved meal
+              name: food.name,
+              amount: food.amount,
+              calories: food.calories,
+              // protein: food.protein,
+              // carbs: food.carbs,
+              // fat: food.fat,   
+                                    //TODO: Add these fields to DB?
+            })
+            .select();
+
+          if (foodsError) {
+            return NextResponse.json({ error: foodsError.message }, { status: 500 });
+          }
+
+          console.log("savedFoods", savedFoods);
+        }
+      }
+    }
+
+    // Return saved plan
+    return NextResponse.json(savedPlan[0], { status: 201 });
+
+  } catch (error) {
+    console.error("Error saving nutrition plan:", error);
+
+    // Narrowing the error type to Error
+    if (error instanceof Error) {
+      return NextResponse.json({ error: `Error saving nutrition plan: ${error.message}` }, { status: 500 });
+    }
+
+    // If it's not an Error object, return a generic message
+    return NextResponse.json({ error: 'An unknown error occurred' }, { status: 500 });
   }
-
-  // Save the generated nutrition plan to Supabase
-  const { data: savedPlan, error: saveError } = await supabase
-    .from('NutritionPlan')
-    .insert({
-      userId: user.id,
-      plan: nutritionPlan,
-      startDate: new Date().toISOString(),
-      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    })
-    .select();
-
-  if (saveError) {
-    return NextResponse.json({ error: saveError.message }, { status: 500 });
-  }
-
-  // Return the saved plan as a response
-  return NextResponse.json(savedPlan[0], { status: 201 });
 }
