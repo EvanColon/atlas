@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
   // Check if user already exists by email
   const { data: existingUser, error: existingUserError } = await supabase
-    .from('User')
+    .from('users')
     .select('id')
     .eq('email', email)
     .single();
@@ -34,15 +34,15 @@ export async function POST(request: Request) {
 
   // Hash the password using bcrypt
   const saltRounds = 10;
-  const hashedPassword = await bcrypt.hash(password, saltRounds);
+  const hashedPassword = await bcrypt.hash(password, saltRounds)
 
-  const newId = uuidv4();  // Generate a valid UUID
+  // const newId = uuidv4();  // Generate a valid UUID
 
   // Insert new user with hashed password
   const { data: newUser, error: newUserError } = await supabase
-    .from('User')
+    .from('users')
     .insert({
-      newId,
+      id: uuidv4(),
       email,
       username,
       password_hash: hashedPassword, // Store the hashed password

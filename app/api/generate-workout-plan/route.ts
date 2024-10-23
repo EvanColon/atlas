@@ -3,8 +3,14 @@ import { createClient } from '@supabase/supabase-js';
 import { OpenAI } from 'openai';
 // import { authMiddleware } from '@/middleware/auth';
 
-// Initialize Supabase client
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error("Missing Supabase environment variables");
+}
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -15,34 +21,32 @@ export async function POST(request: Request) {
   // const authResponse = await authMiddleware(request);
   // if (authResponse.status !== 200) return authResponse;
   
-  const user = (request as any).user;  // Authenticated user info from middleware
+  // const user = (request as any).user;  // Authenticated user info from middleware
+  const user = await request.json();
 
   // Fetch user profile
   const { data: profile, error: profileError } = await supabase
-    .from('Profile')
+    .from('profiles')
     .select('*')
-    .eq('userId', user.id)
+    .eq('user_id', user.id)
     .single();
 
   if (profileError) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
   }
 
+
+
   // Generate workout plan using OpenAI
-  const prompt = `Generate a workout plan based on ${profile}. Include daily workouts with exercises, sets, reps, and durations. Only output an object that I caneasily push to my sql database. The object should be formatted as the following:
+  const prompt = `Generate a workout plan based on these user profile parameters ${profile}. Include daily workouts with exercises, sets, reps, and durations. Only output a JSON object that I can easily parse and push to my sql databases. The object should be formatted as the following:
    
   WorkoutPlan:
       type: object
       required:
-        - id
         - startDate
         - endDate
         - weeklyPlan
       properties:
-        id:
-          type: string
-          format: uuid
-          example: 123e4567-e89b-12d3-a456-426614174000
         startDate:
           type: string
           format: date
@@ -115,36 +119,36 @@ export async function POST(request: Request) {
           format: int32
           minimum: 1
           example: 30
-        completed:
-          type: boolean
-          example: false
-        difficulty:
-          type: string
-          enum: [easy, just-right, hard]
   `;
 
   const completion = await openai.chat.completions.create({
-    messages: [{ role: 'system', content: prompt }],
+    messages: [{ 
+      role: 'system', content: 'You are a proffesional trainer.'},
+      {
+        role: 'user', 
+        content: prompt 
+      }],
     model: 'gpt-3.5-turbo',
     max_tokens: 1000,
+    response_format: { "type": "json_object" },
   });
 
-  const workoutPlan = completion.choices[0]?.message?.content;
+  const workoutPlan = completion.choices[0].message.content;
 
   // Save workout plan to database
-  const { data: savedPlan, error: saveError } = await supabase
-    .from('workout_plans')
-    .insert({
-      userId: user.id,
-      plan: workoutPlan,
-      startDate: new Date().toISOString(),
-      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    })
-    .select();
+  // const { data: savedPlan, error: saveError } = await supabase
+  //   .from('workout_plans')
+  //   .insert({
+  //     userId: user.id,
+  //     plan: workoutPlan,
+  //     startDate: new Date().toISOString(),
+  //     endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+  //   })
+  //   .select();
 
-  if (saveError) {
-    return NextResponse.json({ error: saveError.message }, { status: 500 });
-  }
+  // if (saveError) {
+  //   return NextResponse.json({ error: saveError.message }, { status: 500 });
+  // }
 
-  return NextResponse.json(savedPlan[0], { status: 201 });
+  return NextResponse.json(workoutPlan, { status: 201 });
 }
