@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generateWorkoutPlan } from '@/lib/llmFunctions';
-
+import { authMiddleware } from '@/middleware/auth';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -12,9 +12,16 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function POST(request: Request) {
-  const { id, startDate, endDate } = await request.json();
+  const authResponse = await authMiddleware(request);
+  if (authResponse.status !== 200) return authResponse;
 
-  console.log("req", id, startDate, endDate)
+  let { id, startDate, endDate } = await request.json();
+
+  // If the request has a given user id, use that, otherwise use the user from the token
+  const user = (request as any).user;
+  if (!id) {
+    id = user.id;
+  }
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
@@ -27,8 +34,6 @@ export async function POST(request: Request) {
   }
 
   const workoutPlan = await generateWorkoutPlan(profile, startDate, endDate);
-
-  console.log("workoutPlan", workoutPlan)
 
   try {
     // Save the workout plan in 3 tables: workout_plans, daily_workouts, exercises
@@ -45,8 +50,6 @@ export async function POST(request: Request) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    console.log("savedPlan", savedPlan)
 
     // Save each daily workout
     for (const dailyWorkout of workoutPlan.workoutPlan) {
@@ -65,8 +68,6 @@ export async function POST(request: Request) {
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
-
-      console.log("savedDailyWorkout", savedDailyWorkout)
 
       // Save each exercise
       for (const exercise of dailyWorkout.exercises) {
@@ -88,8 +89,6 @@ export async function POST(request: Request) {
         if (error) {
           return NextResponse.json({ error: error.message }, { status: 500 });
         }
-
-        console.log("savedExercise", savedExercise)
       }
     }
 
