@@ -47,8 +47,19 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+      //Fetch the user profile data
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', id)
+        .single();
 
-      // Step 1: Fetch the latest workout plan for the user
+      if (profileError) {
+        return NextResponse.json({ error: profileError.message }, { status: 500 });
+      }
+      const profileData = profile
+
+      //Fetch the latest workout plan for the user
       const { data: workoutPlan, error: workoutPlanError } = await supabase
         .from('workout_plans')
         .select('*')
@@ -62,7 +73,7 @@ export async function POST(req: Request) {
 
       const workoutPlanId = workoutPlan[0].id;
 
-      // Step 2: Fetch daily workouts and exercises for the workout plan
+      //Fetch daily workouts and exercises for the workout plan
       const { data: dailyWorkouts, error: dailyWorkoutsError } = await supabase
         .from('daily_workouts')
         .select('*')
@@ -86,7 +97,7 @@ export async function POST(req: Request) {
         })
       );
 
-      // Step 3: Fetch the latest nutrition plan for the user
+      //Fetch the latest nutrition plan for the user
       const { data: nutritionPlan, error: nutritionPlanError } = await supabase
         .from('nutrition_plans')
         .select('*')
@@ -100,7 +111,7 @@ export async function POST(req: Request) {
 
       const nutritionPlanId = nutritionPlan[0].id;
 
-      // Step 4: Fetch meals and foods for the nutrition plan
+      //Fetch meals and foods for the nutrition plan
       const { data: meals, error: mealsError } = await supabase
         .from('meals')
         .select('*')
@@ -123,8 +134,8 @@ export async function POST(req: Request) {
           };
         })
       );
-
-      // Step 5: Format workout and nutrition data as context
+      
+      //Format workout and nutrition data as context
       const workoutPlanContext = `
         Workout Plan (Goal: ${workoutPlan[0].goal}, Start Date: ${workoutPlan[0].start_date}, End Date: ${workoutPlan[0].end_date})
         ${workoutsWithExercises.map(dailyWorkout => `
@@ -155,7 +166,7 @@ export async function POST(req: Request) {
       const response = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
-          { role: "system", content: `You are a helpful assistant that answers questions about the content of a workout and nutrition plan based on its contents. Today's date is ${formattedDate}`},
+          { role: "system", content: `You are a helpful assistant that answers questions about the content of a workout and nutrition plan based on its contents and provide suggestions based on the user's profile data. Today's date is ${formattedDate} and the user profile data includes ${profileData}`},
           { role: "user", content: `Workout Plan: ${workoutPlanContext}\n\nNutrition Plan: ${nutritionPlanContext}\n\nQuestion: ${userInput}` },
         ],
         max_tokens: 250,
