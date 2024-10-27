@@ -149,10 +149,13 @@ export async function POST(req: Request) {
       `;
 
       // Step 6: Combine context and generate the AI response
+      const today = new Date();
+      const formattedDate = today.toISOString().split('T')[0]; // Formats to 'YYYY-MM-DD'
+
       const response = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
-          { role: "system", content: "You are a helpful assistant that answers questions about the content of a workout and nutrition plan based on its contents." },
+          { role: "system", content: `You are a helpful assistant that answers questions about the content of a workout and nutrition plan based on its contents. Today's date is ${formattedDate}`},
           { role: "user", content: `Workout Plan: ${workoutPlanContext}\n\nNutrition Plan: ${nutritionPlanContext}\n\nQuestion: ${userInput}` },
         ],
         max_tokens: 250,
