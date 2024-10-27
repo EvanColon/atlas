@@ -235,7 +235,48 @@ if (response.ok) {
   console.error('Failed to fetch nutrition plan');
 }
 ```
+### 5. Chat
+```javascript
+POST /api/chat
 
+async function postToChatApi(userId, userInput) {
+  const apiUrl = 'https://your-api-url.com/api/chat'; // Replace with your actual API URL
+
+  const requestBody = {
+    userId: userId,
+    userInput: userInput,
+  };
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.API_KEY}`, // Replace with your actual API key
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      // Handle error response
+      const errorResponse = await response.json();
+      throw new Error(errorResponse.error || 'An error occurred while communicating with the API');
+    }
+
+    const data = await response.json();
+    console.log('AI Response:', data.response);
+  } catch (error) {
+    console.error('Error:', error.message);
+  }
+}
+
+// Usage example
+const userId = '12345678-abcd-1234-abcd-1234567890ab'; // Replace with actual user ID
+const userInput = 'How can I improve my endurance with this workout plan?';
+
+postToChatApi(userId, userInput);
+
+```
 ### Error Handling
 
 All endpoints return appropriate HTTP status codes:

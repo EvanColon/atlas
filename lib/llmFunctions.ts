@@ -133,6 +133,9 @@ export const nutritionPlanFunction = {
 };
 
 export async function generateWorkoutPlan(userProfile: any, startDate: string, endDate: string) {
+
+
+  
   const completion = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [
@@ -160,3 +163,28 @@ export async function generateNutritionPlan(userProfile: any) {
   return JSON.parse(completion.choices[0].message.function_call?.arguments || "{}");
 }
 
+export async function generateNutritionAIResponse(nutritionPlan: string,userInput: string) {
+  const response = await openai.chat.completions.create({
+    model: "gpt-3.5-turbo",
+    messages: [
+      { role: "system", content: "You are a helpful assistant that answers questions about the content of a nutrition plan based on its contents." },
+      { role: "user", content: `Nutrition Plan: ${nutritionPlan}\n\nQuestion: ${userInput}` },
+    ],
+    max_tokens: 250,
+  });
+ 
+  return response.choices[0].message.content;
+
+}
+  export async function generateWorkoutAIResponse(workoutPlan: string, userInput: string) {
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        { role: "system", content: "You are a helpful assistant that answers questions about the content of a workout plan based on its contents." },
+        { role: "user", content: `Workout Plan: ${workoutPlan}\n\nQuestion: ${userInput}` },
+      ],
+      max_tokens: 250,
+    });
+
+  return response.choices[0].message.content;
+}
