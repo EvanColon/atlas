@@ -1,67 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { Configuration, OpenAIApi } from 'openai';
 import { authMiddleware } from '@/middleware/auth';
 
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
-const configuration = new Configuration({ apiKey: process.env.OPENAI_API_KEY });
-const openai = new OpenAIApi(configuration);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-export async function POST(request: Request) {
-  const authResponse = await authMiddleware(request);
-  if (authResponse.status !== 200) return authResponse;
-
-  try {
-    const user = (request as any).user;
-    const { goal, duration, branch } = await request.json();
-
-    if (!goal || !duration || !branch) {
-      return NextResponse.json({ error: 'Goal, duration, and branch are required' }, { status: 400 });
-    }
-
-    // Fetch user profile
-    const { data: profile, error: profileError } = await supabase
-      .from('Profile')
-      .select('*')
-      .eq('userId', user.id)
-      .single();
-
-    if (profileError) {
-      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
-    }
-
-    // Generate workout plan using OpenAI
-    const prompt = `Generate a ${duration}-week workout plan for a ${profile.age}-year-old ${branch} service member with the goal: ${goal}. Include daily workouts with exercises, sets, reps, and durations. Return the response as a JSON object with the following structure: { startDate: string, endDate: string, weeklyPlan: [{ day: string, summary: string, duration: number, caloriesBurned: number, workoutType: string, exercises: [{ name: string, sets: number, reps: number, duration: number, completed: boolean, difficulty: string }] }] }`;
-
-    const completion = await openai.createCompletion({
-      model: "text-davinci-002",
-      prompt: prompt,
-      max_tokens: 1000,
-    });
-
-    const workoutPlan = JSON.parse(completion.data.choices[0].text!);
-
-    // Save workout plan to database
-    const { data: savedPlan, error: saveError } = await supabase
-      .from('WorkoutPlan')
-      .insert({
-        userId: user.id,
-        plan: workoutPlan,
-        startDate: workoutPlan.startDate,
-        endDate: workoutPlan.endDate,
-      })
-      .select();
-
-    if (saveError) {
-      return NextResponse.json({ error: 'Failed to save workout plan' }, { status: 500 });
-    }
-
-    return NextResponse.json(savedPlan[0], { status: 201 });
-  } catch (error) {
-    console.error('Error generating workout plan:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error("Missing Supabase environment variables");
 }
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function GET(request: Request) {
   const authResponse = await authMiddleware(request);
@@ -70,22 +18,103 @@ export async function GET(request: Request) {
   try {
     const user = (request as any).user;
 
-    const { data: workoutPlan, error } = await supabase
-      .from('WorkoutPlan')
+    // Parse query parameters
+    const { searchParams } = new URL(request.url);
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
+
+    let startDate: Date;
+    let endDate: Date;
+
+    if (startDateParam && endDateParam) {
+      startDate = new Date(startDateParam);
+      endDate = new Date(endDateParam);
+    } else {
+      // Default to the next 7 days
+      startDate = new Date();
+      endDate = new Date();
+      endDate.setDate(endDate.getDate() + 7);
+    }
+
+    // Fetch the latest workout plan for the user
+    const { data: workoutPlan, error: workoutPlanError } = await supabase
+      .from('workout_plans')
       .select('*')
-      .eq('userId', user.id)
-      .order('createdAt', { ascending: false })
+      .eq('user_id', user.id)
+      .gte('start_date', startDate.toISOString())
+      .lte('end_date', endDate.toISOString())
+      .order('created_at', { ascending: false })
       .limit(1)
       .single();
 
-    if (error) {
-      if (error.code === 'PGRST116') {
+    if (workoutPlanError) {
+      if (workoutPlanError.code === 'PGRST116') {
         return NextResponse.json({ error: 'Workout plan not found' }, { status: 404 });
       }
       return NextResponse.json({ error: 'Failed to fetch workout plan' }, { status: 500 });
     }
 
-    return NextResponse.json(workoutPlan);
+    // Fetch daily workouts associated with the workout plan
+    const { data: dailyWorkouts, error: dailyWorkoutsError } = await supabase
+      .from('daily_workouts')
+      .select('*')
+      .eq('workout_plan_id', workoutPlan.id);
+
+    if (dailyWorkoutsError) {
+      return NextResponse.json({ error: dailyWorkoutsError.message }, { status: 500 });
+    }
+
+    // Fetch exercises for each daily workout
+    const workoutsWithExercises = await Promise.all(
+      dailyWorkouts.map(async (dailyWorkout) => {
+        const { data: exercises, error: exercisesError } = await supabase
+          .from('exercises')
+          .select('*')
+          .eq('daily_workout_id', dailyWorkout.id);
+
+        if (exercisesError) throw new Error(exercisesError.message);
+
+        return {
+          ...dailyWorkout,
+          exercises,
+        };
+      })
+    );
+
+    // Format the response to match the structure generated by the AI tool
+    const response = {
+      startDate: workoutPlan.start_date,
+      endDate: workoutPlan.end_date,
+      workoutGoal: workoutPlan.goal,
+      workoutPlan: workoutsWithExercises.map(dailyWorkout => ({
+        day: dailyWorkout.date,
+        summary: dailyWorkout.summary,
+        duration: dailyWorkout.duration,
+        caloriesBurned: dailyWorkout.calories_burned,
+        workoutType: dailyWorkout.workout_type,
+        exercises: dailyWorkout.exercises.map((exercise: { 
+          name: string; 
+          sets: number; 
+          reps: number; 
+          duration?: number; 
+          weight?: number; 
+          rest_time?: number; 
+          completed?: boolean; 
+          difficulty?: string; 
+        }) => ({
+          name: exercise.name,
+          sets: exercise.sets,
+          reps: exercise.reps,
+          duration: exercise.duration,
+          weight: exercise.weight,
+          restTime: exercise.rest_time,
+          completed: exercise.completed,
+          exerciseDifficulty: exercise.difficulty,
+        })),
+      })),
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Error fetching workout plan:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
