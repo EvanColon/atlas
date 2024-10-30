@@ -26,7 +26,6 @@ POST /api/create-user
 
 const userData = {
   email: 'john.doe@example.com',
-  username: 'john_doe',
   password: 'securePassword123' // This will be hashed and stored securely
 };
 

@@ -46,10 +46,10 @@ components:
     LoginRequest:
       type: object
       required:
-        - username
+        - email
         - password
       properties:
-        username:
+        email:
           type: string
           example: john.doe@example.com
         password:
@@ -81,7 +81,7 @@ components:
             id:
               type: string
               format: uuid
-            username:
+            email:
               type: string
             role:
               $ref: '../openapi.yaml#/components/schemas/UserRole'

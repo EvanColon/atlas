@@ -3,7 +3,6 @@ myHeaders.append("Content-Type", "application/json");
 
 const raw = JSON.stringify({
   "email": "jane.doe@gmail.com",
-  "username": "plain jane",
   "password": "nunya",
   "role": "SystemAdministrator"
 });

@@ -5,20 +5,17 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env
 
 export async function POST(request: Request) {
   try {
-    const { username, password } = await request.json();
-
-    console.log("username", username)
-    console.log("password", password)
-
-    if (!username || !password) {
+    const { email, password } = await request.json();
+    
+    if (!email || !password) {
       return NextResponse.json(
-        { error: 'Username and password are required' },
+        { error: 'Email and password are required' },
         { status: 400 }
       );
     }
 
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: username,
+      email: email,
       password: password,
     });
 
@@ -38,8 +35,8 @@ export async function POST(request: Request) {
       expires_in: data.session.expires_in,
       user: {
         id: user?.id,
-        username: user?.email,
-        role: user?.user_metadata?.role || 'user', // Default to 'user' if role is not set
+        email: user?.email,
+        role: user?.user_metadata?.role || 'BaseMember', // Default to 'BaseMember' if role is not set
       },
     });
   } catch (error) {

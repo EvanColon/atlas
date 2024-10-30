@@ -14,8 +14,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function GET(request: Request) {
-  // const authResponse = await authMiddleware(request);
-  // if (authResponse.status !== 200) return authResponse;
+  const authResponse = await authMiddleware(request);
+  if (authResponse.status !== 200) return authResponse;
 
   const user = (request as any).user;
 
@@ -33,8 +33,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  // const authResponse = await authMiddleware(request);
-  // if (authResponse.status !== 200) return authResponse;
+  const authResponse = await authMiddleware(request);
+  if (authResponse.status !== 200) return authResponse;
 
   const user = (request as any).user;
   const profile = await request.json();

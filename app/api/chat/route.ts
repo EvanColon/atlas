@@ -55,6 +55,7 @@ export async function POST(req: Request) {
         .single();
 
       if (profileError) {
+        console.error("Error fetching profile data:", profileError);
         return NextResponse.json({ error: profileError.message }, { status: 500 });
       }
       const profileData = profile

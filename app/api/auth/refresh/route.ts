@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       expires_in: data.session?.expires_in,
       user: {
         id: user?.id,
-        username: user?.email,
+        email: user?.email,
         role: user?.user_metadata?.role || 'user', // Default to 'user' if role is not set
       },
     });

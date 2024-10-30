@@ -5,7 +5,7 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env
 
 export async function POST(request: Request) {
   try {
-    const { email, password } = await request.json();
+    const { email, password, name, age, branch } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data, error } = await supabase.auth.signUp({
+    const { data: signupData, error: signupError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -24,16 +24,30 @@ export async function POST(request: Request) {
       },
     });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+    if (signupError) {
+      console.error('Signup error:', signupError);
+      return NextResponse.json({ error: signupError.message }, { status: 400 });
+    }
+
+    // Create a blank profile for the user
+    const { data: profileData, error: profileError } = await supabase.from('profiles').insert({
+      user_id: signupData.user?.id,
+      name,
+      age,
+      branch,
+    });
+
+    if (profileError) {
+      console.error('Profile creation error:', profileError);
+      return NextResponse.json({ error: profileError.message }, { status: 400 });
     }
 
     return NextResponse.json({
       message: 'User registered successfully',
       user: {
-        id: data.user?.id,
-        email: data.user?.email,
-        role: data.user?.user_metadata?.role,
+        id: signupData.user?.id,
+        email: signupData.user?.email,
+        role: signupData.user?.user_metadata?.role,
       },
     }, { status: 201 }); // 201 Created status for successful resource creation
   } catch (error) {

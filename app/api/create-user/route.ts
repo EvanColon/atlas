@@ -14,7 +14,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 
 export async function POST(request: Request) {
-  const { email, username, password, role } = await request.json();
+  const { email, password, role } = await request.json();
 
   // Check if user already exists by email
   const { data: existingUser, error: existingUserError } = await supabase
@@ -44,7 +44,6 @@ export async function POST(request: Request) {
     .insert({
       id: uuidv4(),
       email,
-      username,
       password_hash: hashedPassword, // Store the hashed password
       role: role || 'BaseMember',    // Default role, could be configurable
     })
