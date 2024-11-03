@@ -28,7 +28,24 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json({
+    id: data.id,
+    name: data.name,
+    age: data.age,
+    height: data.height,
+    weight: data.weight,
+    branch: data.branch,
+    currentInstallation: data.current_installation,
+    fitnessWaivers: data.fitness_waivers,
+    dietaryRestrictions: data.dietary_restrictions,
+    fitnessGoals: data.fitness_goals,
+    nutritionGoals: data.nutrition_goals,
+    fitnessPreferences: data.fitness_preferences,
+    diningFacilityUsage: data.dining_facility_usage,
+    onBaseRestaurantUsage: data.on_base_restaurant_usage,
+    offBaseRestaurantUsage: data.off_base_restaurant_usage,
+    homeCookingFrequency: data.home_cooking_frequency,
+  });
 }
 
 export async function PUT(request: Request) {
