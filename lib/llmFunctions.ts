@@ -132,7 +132,7 @@ export const nutritionPlanFunction = {
   }
 };
 
-export async function generateWorkoutPlan(userProfile: any, startDate: string, endDate: string) {
+export async function generateWorkoutPlan(userProfile: any, userInput: string, startDate: string, endDate: string) {
 
 
   
@@ -140,7 +140,7 @@ export async function generateWorkoutPlan(userProfile: any, startDate: string, e
     model: "gpt-4o",
     messages: [
       { role: "system", content: "You are a professional trainer." },
-      { role: "user", content: `Generate a workout plan from ${startDate} to ${endDate} based on these user profile parameters: ${JSON.stringify(userProfile)}. Include daily workouts with exercises, sets, reps, and durations.` }
+      { role: "user", content: `Generate a workout plan from ${startDate} to ${endDate} based on these user profile parameters: ${JSON.stringify(userProfile)}. Additional user input: ${userInput}. Include daily workouts with exercises, sets, reps, and durations.` }
     ],
     functions: [workoutPlanFunction],
     function_call: { name: "generate_workout_plan" }

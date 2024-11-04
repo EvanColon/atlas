@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   const authResponse = await authMiddleware(request);
   if (authResponse.status !== 200) return authResponse;
 
-  let { id, startDate, endDate } = await request.json();
+  let { id, startDate, endDate, userInput } = await request.json();
 
   // If the request has a given user id, use that, otherwise use the user from the token
   const user = (request as any).user;
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
   }
 
-  const workoutPlan = await generateWorkoutPlan(profile, startDate, endDate);
+  const workoutPlan = await generateWorkoutPlan(profile, userInput, startDate, endDate);
 
   try {
     // Save the workout plan in 3 tables: workout_plans, daily_workouts, exercises

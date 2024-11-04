@@ -109,7 +109,7 @@ components:
         - id
         - startDate
         - endDate
-        - weeklyPlan
+        - workouts
       properties:
         id:
           type: string
@@ -123,7 +123,7 @@ components:
           type: string
           format: date
           example: '2023-05-28'
-        weeklyPlan:
+        workouts:
           type: array
           items:
             $ref: '#/components/schemas/DailyWorkout'
