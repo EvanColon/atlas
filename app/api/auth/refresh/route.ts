@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       user: {
         id: user?.id,
         email: user?.email,
-        role: user?.user_metadata?.role || 'user', // Default to 'user' if role is not set
+        role: user?.user_metadata?.role || 'BaseMember', // Default to 'BaseMember' if role is not set
       },
     });
   } catch (error) {
