@@ -201,7 +201,7 @@ export async function getDiningFacilityMenu(day: string, mealTime: string) {
   } catch (error) {
     return {
       success: false,
-      error: error.message,
+      error: error instanceof Error ? error.message : 'An unknown error occurred',
     };
   }
 }

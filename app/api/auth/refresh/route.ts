@@ -41,9 +41,9 @@ export async function POST(request: Request) {
 
     // Cache the new token and its expiry time
     cachedToken = {
-      access_token: data.session?.access_token,
-      refresh_token: data.session?.refresh_token,
-      expires_in: data.session?.expires_in,
+      access_token: data.session?.access_token ?? '',
+      refresh_token: data.session?.refresh_token ?? '',
+      expires_in: data.session?.expires_in ?? 0,
       user: {
         id: user?.id,
         email: user?.email,

@@ -150,9 +150,10 @@ export async function fetchDiningFacilityData(day?: string, mealTime?: string): 
     
     // Extract aData (nutrition information)
     const nutritionData: Record<string, string[]> = {};
-    const nutritionMatches = responseText.matchAll(/aData\['([^']+)'\]\s*=\s*new Array\(([\s\S]*?)\);/g);
+    const regex = /aData\['([^']+)'\]\s*=\s*new Array\(([\s\S]*?)\);/g;
+    let match;
     
-    for (const match of nutritionMatches) {
+    while ((match = regex.exec(responseText)) !== null) {
       const [_, id, valuesStr] = match;
       const values = valuesStr.split(',').map(val => 
         val.trim().replace(/^"|"$/g, '').replace(/^'|'$/g, '')
@@ -167,7 +168,15 @@ export async function fetchDiningFacilityData(day?: string, mealTime?: string): 
     
     // If no day/meal specified, return the full menu
     if (!day || !mealTime) {
-      return processedMenu;
+      // Convert SimplifiedMenuResponse to DayMealResponse format
+      return {
+        title: processedMenu.title,
+        date: processedMenu.startDate,
+        meal: {
+          title: "All Meals",
+          categories: processedMenu.menus[0].days[0].meals[0].categories
+        }
+      };
     }
 
     // Find the specified day
