@@ -41,6 +41,7 @@ export async function POST(request: Request) {
       .from('workout_plans')
       .insert({
         user_id: id,
+        name: workoutPlan.name,
         start_date: workoutPlan.startDate,
         end_date: workoutPlan.endDate,
         goal: workoutPlan.workoutGoal,

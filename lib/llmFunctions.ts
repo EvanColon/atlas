@@ -10,6 +10,10 @@ export const workoutPlanFunction = {
   parameters: {
     type: "object",
     properties: {
+      name: {
+        type: "string",
+        description: "Name of the workout plan"
+      },
       startDate: {
         type: "string",
         format: "date",
@@ -22,7 +26,6 @@ export const workoutPlanFunction = {
       },
       workoutGoal: {
         type: "string",
-        enum: ["strength", "endurance", "weight_loss", "general_fitness"],
         description: "Goal of the workout plan"
       },
       workoutPlan: {
@@ -60,7 +63,7 @@ export const workoutPlanFunction = {
         }
       }
     },
-    required: ["startDate", "endDate", "workoutPlan"]
+    required: ["name", "startDate", "endDate", "workoutGoal", "workoutPlan"]
   }
 };
 
