@@ -188,3 +188,41 @@ export async function generateNutritionAIResponse(nutritionPlan: string,userInpu
 
   return response.choices[0].message.content;
 }
+
+import { fetchDiningFacilityData } from '@/lib/diningFacility';
+
+export async function getDiningFacilityMenu(day: string, mealTime: string) {
+  try {
+    const menuData = await fetchDiningFacilityData(day, mealTime);
+    return {
+      success: true,
+      data: menuData,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
+
+export const diningFacilityFunction = {
+  name: "get_dining_facility_menu",
+  description: "Fetch the dining facility's menu for a specific day and meal.",
+  parameters: {
+    type: "object",
+    properties: {
+      day: {
+        type: "string",
+        enum: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+        description: "Day of the week to fetch menu for"
+      },
+      meal: {
+        type: "string",
+        enum: ["Breakfast", "Lunch", "Dinner"],
+        description: "Meal time to fetch menu for"
+      }
+    },
+    required: ["day", "meal"]
+  }
+};
