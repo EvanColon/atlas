@@ -74,12 +74,19 @@ export async function GET(request: Request) {
 
     // Format the response
     const response = {
-      nutritionPlan: {
-        ...nutritionPlan,
-        meals: mealsWithFoods,
-      },
-      profile,
+      id: nutritionPlan.id,
+      userId: nutritionPlan.user_id,
+      goal: nutritionPlan.goal,
+      startDate: nutritionPlan.start_date,
+      endDate: nutritionPlan.end_date,
+      dailyCalories: nutritionPlan.daily_calories,
+      protein: nutritionPlan.protein,
+      carbohydrates: nutritionPlan.carbohydrates,
+      fat: nutritionPlan.fat,
+      meals: mealsWithFoods
     };
+
+    console.log("response", response);
 
     return NextResponse.json(response);
   } catch (error) {

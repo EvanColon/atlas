@@ -210,7 +210,7 @@ export async function POST(req: Request) {
 
       // Create a follow-up message with the function result
       const secondResponse = await openai.chat.completions.create({
-        model: "gpt-4",
+        model: "gpt-4o",
         messages: [
           ...messages,
           responseMessage,

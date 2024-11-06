@@ -92,7 +92,31 @@ interface DayMealResponse {
   };
 }
 
+interface CacheEntry {
+  data: DayMealResponse | null;
+  timestamp: number;
+  key: string;
+}
+
+const menuCache: Map<string, CacheEntry> = new Map();
+const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
+
 export async function fetchDiningFacilityData(day?: string, mealTime?: string): Promise<DayMealResponse | null> {
+  // Create a cache key based on the day and mealTime
+  const cacheKey = `${day || 'all'}-${mealTime || 'all'}`;
+  
+  // Check cache first
+  const cached = menuCache.get(cacheKey);
+  const currentTime = Date.now();
+  
+  if (cached && (currentTime - cached.timestamp) < CACHE_DURATION) {
+    console.log("Returning cached menu data");
+    return cached.data;
+  }
+
+  // If not in cache or expired, fetch new data
+  console.log("Fetching fresh menu data");
+  
   console.log("fetchDiningFacilityData", day, mealTime);
   // Get the current date
   const now = new Date();
@@ -198,7 +222,7 @@ export async function fetchDiningFacilityData(day?: string, mealTime?: string): 
     }
 
     // Return just the specific day and meal
-    return {
+    const result = {
       title: processedMenu.title,
       date: selectedDay.day,
       meal: {
@@ -206,6 +230,14 @@ export async function fetchDiningFacilityData(day?: string, mealTime?: string): 
         categories: selectedMeal.categories
       }
     };
+
+    menuCache.set(cacheKey, {
+      data: result,
+      timestamp: currentTime,
+      key: cacheKey
+    });
+
+    return result;
   } catch (error) {
     console.error('Error fetching dining facility data:', error);
     throw new Error('Internal server error');
