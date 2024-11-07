@@ -85,6 +85,7 @@ export async function GET(request: Request) {
     const response = [{
       id: workoutPlan.id,
       name: workoutPlan.name,
+      goal: workoutPlan.goal,
       startDate: workoutPlan.start_date,
       endDate: workoutPlan.end_date,
       workoutGoal: workoutPlan.goal,
