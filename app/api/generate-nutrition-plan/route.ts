@@ -107,6 +107,8 @@ export async function POST(request: Request) {
                 id: uuidv4(),
                 nutrition_plan_id: savedPlan[0].id,
                 name: meal.name,
+                time: meal.time,
+                meal_type: 'dining_facility'
               })
               .select();
 
@@ -116,30 +118,32 @@ export async function POST(request: Request) {
 
             console.log("savedMeals", savedMeals);
 
-            // Check if meal has diningFacilityOptions or alternativeOptions
-            const foodOptions = [
-              ...(meal.diningFacilityOptions || []),
-              ...(meal.alternativeOptions || [])
-            ];
-
-            // Insert each food related to the meal
-            for (const food of foodOptions) {
-              const { data: savedFoods, error: foodsError } = await supabase
+            // Insert foods with their source type
+            for (const food of meal.diningFacilityOptions || []) {
+              await supabase
                 .from('foods')
                 .insert({
                   id: uuidv4(),
                   meal_id: savedMeals[0].id,
                   name: food.name,
-                  amount: food.amount || food.portion || '1 serving',
-                  calories: parseInt(food.calories) || 0,
-                })
-                .select();
+                  amount: food.portion,
+                  calories: food.calories,
+                  allergens: food.allergens,
+                  source_type: 'dining_facility'
+                });
+            }
 
-              if (foodsError) {
-                return NextResponse.json({ error: foodsError.message }, { status: 500 });
-              }
-
-              console.log("savedFoods", savedFoods);
+            for (const food of meal.alternativeOptions || []) {
+              await supabase
+                .from('foods')
+                .insert({
+                  id: uuidv4(),
+                  meal_id: savedMeals[0].id,
+                  name: food.name,
+                  amount: food.amount,
+                  calories: food.calories,
+                  source_type: 'alternative'
+                });
             }
           }
         }
