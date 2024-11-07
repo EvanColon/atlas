@@ -52,8 +52,6 @@ export async function POST(request: Request) {
     };
     tokenExpiry = currentTime + (data.session?.expires_in || 0); // Set expiry time
 
-    console.log('user', user)
-
     return NextResponse.json({
       access_token: cachedToken.access_token,
       refresh_token: cachedToken.refresh_token,
